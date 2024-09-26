@@ -2,12 +2,6 @@ __author__ = "Yun Sion"
 # Github = https://github.com/Sion-Yun/FIT3155_A2
 import sys
 
-"""
-# get BWT of the input text
-# search the given pattern,
-# using BWT as a search index
-"""
-
 def z_algo(txt: str) -> [int]:
     """
     Z-algorithm; computes Z-values of a given string.
@@ -273,8 +267,8 @@ class BWT:
         for i in range(len(self.suffix_array)):
             ret += self.txt[self.suffix_array[i] - 1]
             # test += self.txt[self.suffix_array[i]]
-        # print(self.suffix_array)
-        # print(test)
+        print(self.suffix_array)
+        print(ret)
         return ret
 
     def dfs(self, node):
@@ -324,6 +318,11 @@ class Wildcard:
         self.segment_length = 0
         self.wild_length = 0
         self.is_no_hit = False
+
+        # TODO - change z_algo to BWT
+        my_bwt = BWT(txt)
+        self.bwt = my_bwt.get_bwt()
+        self.suffix_array = my_bwt.suffix_array
 
         self.match()
         self.output()
@@ -483,7 +482,7 @@ if __name__ == '__main__':
     # pat_file = open(sys.argv[2], "r")
 
     # Wildcard(txt_file.read(), pat_file.read())
-    BWT("abbbbcbbcbcabbbb").get_bwt()
-    BWT("abcbaabaab").get_bwt()
-    BWT("woolowwmooloo").get_bwt()
-    BWT("banana").get_bwt()
+    # BWT("abbbbcbbcbcabbbb").get_bwt()
+    # BWT("abcbaabaab").get_bwt()
+    # BWT("woolowwmooloo").get_bwt()
+    BWT("banana").get_bwt()  # gives baa
