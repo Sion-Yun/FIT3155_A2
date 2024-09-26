@@ -8,8 +8,6 @@ import sys
 # using BWT as a search index
 """
 
-# TODO - TEST, optimise
-
 def z_algo(txt: str) -> [int]:
     """
     Z-algorithm; computes Z-values of a given string.
@@ -129,9 +127,9 @@ class Node(object):
         else:
             return self.end.get_end()
 
-class SuffixTree(object):
+class ImplicitSuffixTree(object):
     """
-    A class to represent the suffix tree of a given text, using Ukkonen's algorithm for construction.
+    A class to represent the implicit suffix tree of a given text, using Ukkonen's algorithm for construction.
     """
     def __init__(self, txt):
         self.txt = txt
@@ -255,7 +253,7 @@ class BWT:
     """
     def __init__(self, txt):
         self.txt = txt
-        self.suffix_tree = SuffixTree(txt)
+        self.suffix_tree = ImplicitSuffixTree(txt)
         self.suffix_array = []
 
         # DFS on the suffix tree to get suffix array
@@ -271,11 +269,12 @@ class BWT:
         """
         # Convert the suffix array to the BWT string
         ret = ""
-        test = ""
+        # test = ""
         for i in range(len(self.suffix_array)):
             ret += self.txt[self.suffix_array[i] - 1]
-            test += self.txt[self.suffix_array[i]]
-        print(self.suffix_array)  # TODO - remove after test
+            # test += self.txt[self.suffix_array[i]]
+        # print(self.suffix_array)
+        # print(test)
         return ret
 
     def dfs(self, node):
@@ -292,7 +291,6 @@ class BWT:
                 self.suffix_array.append(child.j)  # Add leaf node's suffix index
             elif child is not None:
                 self.dfs(child)  # Recurse for non-leaf nodes
-
 
 class Wildcard:
     """
@@ -488,4 +486,4 @@ if __name__ == '__main__':
     BWT("abbbbcbbcbcabbbb").get_bwt()
     BWT("abcbaabaab").get_bwt()
     BWT("woolowwmooloo").get_bwt()
-    BWT("abcab").get_bwt()
+    BWT("banana").get_bwt()
