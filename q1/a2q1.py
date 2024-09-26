@@ -8,6 +8,8 @@ import sys
 # using BWT as a search index
 """
 
+# TODO - TEST, optimise
+
 def z_algo(txt: str) -> [int]:
     """
     Z-algorithm; computes Z-values of a given string.
@@ -55,50 +57,241 @@ def z_algo(txt: str) -> [int]:
                 r -= 1
     return z  # return all z-values
 
-def get_bwt(txt: str) -> str:
+def custom_ord(k):
     """
-    :param txt:
-    :return:
+    Reduces ASCII value by 32 to map the chars for reduced list size
     """
-    # suffixarray = dfs(suffix_tree)
-    # bwt = ''.join(text[i-1] for i in suffixarray)
-    pass
+    return ord(k) - 32
 
+class GlobalEnd:
+    """
+    Handles the global end pointer for leaf nodes in the suffix tree, allowing dynamic extension of leaves
+    """
+    def __init__(self):
+        self.value = None
 
-class SuffixTree:
-    # gives suffix tree of T_i for prefix str[1...i] in O(n)
-    # using ukkonen algo
+    def set_end(self, end):
+        self.value = end
+
+    def get_end(self):
+        return self.value
+
+class Node(object):
+    """
+    Represents a node in the suffix tree
+    """
+    def __init__(self, start, end, j, is_leaf):
+        # Trick 1 - space-efficient form of edge-labels and substrings
+        self.children = None
+        self.children_count = 0  # trick 1
+        self.suffix_link = None
+        self.j = j  # trick 1; If it's a leaf, this is the index of the suffix
+        self.start = start  # trick 1
+        self.end = end  # trick 1
+        self.is_leaf = is_leaf
+
+        if not is_leaf:
+            self.set_not_leaf()
+
+    def get_children(self, i):
+        """
+        Returns the child node at pos i
+        """
+        return self.children[i]
+
+    def add_child(self, i, child):
+        """
+        Adds a child node to this node's children at pos i
+        """
+        self.children[i] = child
+        self.children_count += 1
+
+    def set_not_leaf(self):
+        """
+        Converts the node to a non-leaf node
+        """
+        self.children = [None] * 96
+        self.is_leaf = False
+        self.j = None
+
+    def get_edge_len(self):
+        """
+        Returns the length of the edge represented by this node.
+        """
+        return self.get_end() - self.start + 1
+
+    def get_end(self):
+        """
+        Returns the end index of the node, which can be dynamic if it's a leaf.
+        """
+        if isinstance(self.end, int):
+            return self.end
+        else:
+            return self.end.get_end()
+
+class SuffixTree(object):
+    """
+    A class to represent the suffix tree of a given text, using Ukkonen's algorithm for construction.
+    """
     def __init__(self, txt):
-        self.txt = txt  # input text
-        self.size = len(txt)
+        self.txt = txt
+        self.n = len(txt)
         self.root = None
-        self.i = 0  # phase
-        self.j = 0  # phase
-        self.GE = None
+        self.j = 0  # current phase index of Ukkonen
+        self.endPointer = GlobalEnd()  # Global end pointer for leaf nodes
         self.active_node = None
+        self.prev_node = None  # previous node to maintain suffix links between internal nodes
         self.active_edge = -1
-        self.remainder_count = 0
-        self.pending_node = None
-        self.link = None
+        self.active_len = 0
 
-    def create_node(self, start, end, j, is_leaf):
+        self.init_suffix_tree()
+
+    def init_suffix_tree(self):
+        """
+        Initialises the suffix tree by creating the root node and iterating over the text to extend.
+
+        Time complexity: O(n), where n is the length of the input text.
+        Space complexity: O(n), where n is the length of the input text.
+        """
+        self.root = self.create_node(-1, -1, None, False)  # root node with start and end as -1
+        self.root.suffix_link = self.root  # suffix link points to itself (root)
+        self.active_node = self.root  # the first active node is the root
+
+        for i in range(self.n):
+            self.extend_suffix_tree(i)  # extending each char from the text.
+
+    def create_node(self, start, end, j, is_leaf=True):
+        """
+        Creates a new node of the suffix tree.
+        :param start: The starting index of the node's edge in the input text.
+        :param end: The ending index of the node's edge (or a reference to endPointer for leaves).
+        :param j: The suffix index for leaves, None for internal nodes.
+        :param is_leaf: Boolean flag to indicate if the node is a leaf.
+        :return: A new node.
+        """
         node = Node(start, end, j, is_leaf)
         node.suffix_link = self.root
         return node
 
     def extend_suffix_tree(self, i):
-        pass
+        """
+        Extends the suffix tree for the text[i].
+        Implements Ukkonen's algorithm with three extension rules.
 
-    def ukkonen(self):
-        pass
+        Time complexity: O(n), where n is the length of the input text.
+            - O(1) amortized per phase.
+        Space complexity: O(n), where n is the length of the input text.
+        """
+        # Rule 1
+        # Trick 4 - rapid leaf extension
+        self.endPointer.set_end(i)  # updating the global end for leaves
+        self.prev_node = None  # reset the previous node for a new phase
 
-class Node:
-    def __init__(self, start, end, j, is_leaf):
-        self.children = None
-        self.suffix_link = None
-        self.is_leaf = is_leaf
-        self.start = None
-        self.end = None
+        while self.j <= i:
+            if self.active_len == 0:
+                self.active_edge = i  # reset the active edge to current index
+
+            # Rule 2 - Branch a new leaf from the active node if no outgoing edge exists
+            if self.active_node.get_children(custom_ord(self.txt[self.active_edge])) is None:
+                # Create a new leaf node
+                self.active_node.add_child(custom_ord(self.txt[self.active_edge]), self.create_node(i, self.endPointer, self.j))
+
+                # If there was an internal node created in the last extension, set its suffix link
+                if self.prev_node is not None:
+                    self.prev_node.suffix_link = self.active_node
+                    self.prev_node = None
+
+            else:
+                # Handle case where there is an outgoing edge for the active edge
+                next_node = self.active_node.get_children(custom_ord(self.txt[self.active_edge]))
+                next_len = next_node.get_edge_len()
+
+                # Traverse down the tree if the active next_len exceeds the edge next_len
+                if self.active_len >= next_len:
+                    self.active_node = next_node
+                    self.active_edge += next_len
+                    self.active_len -= next_len
+                    continue
+
+                # Rule 3 - Stop extension if the character already exists on the edge
+                if self.txt[i] == self.txt[next_node.start + self.active_len]:
+                    if self.active_node is not self.root and self.prev_node is not None:
+                        self.prev_node.suffix_link = self.active_node
+                        self.prev_node = None
+
+                    self.active_len += 1  # Extend the active next_len
+                    break  # Showstopper trick
+
+                # Rule 2 - Split the edge and create a new internal node
+                new_start = next_node.start
+                next_node.start += self.active_len
+
+                # New internal node
+                new_node = self.create_node(new_start, new_start + self.active_len - 1, None, False)
+                new_node.add_child(custom_ord(self.txt[next_node.start]), next_node)  # close the split part
+                new_node.add_child(custom_ord(self.txt[i]), self.create_node(i, self.endPointer, self.j))  # new leaf
+                # active_node connect to this new internal node
+                self.active_node.children[custom_ord(self.txt[new_start])] = new_node
+
+                # Update suffix link for the previously created internal node
+                if self.prev_node is not None:
+                    self.prev_node.suffix_link = new_node
+                self.prev_node = new_node
+
+            self.j += 1
+
+            # Update the active point for the next extension
+            if self.active_node is self.root and self.active_len > 0:
+                self.active_len -= 1
+                self.active_edge = self.j
+            else:
+                # Follow the suffix link
+                self.active_node = self.active_node.suffix_link
+
+class BWT:
+    """
+    Class representing BWT of a given text.
+    Uses a suffix tree for efficient suffix array construction.
+    """
+    def __init__(self, txt):
+        self.txt = txt
+        self.suffix_tree = SuffixTree(txt)
+        self.suffix_array = []
+
+        # DFS on the suffix tree to get suffix array
+        self.dfs(self.suffix_tree.root)
+
+    def get_bwt(self):
+        """
+        Returns the BWT string from the suffix array
+        :return ret: The BWT form of the suffix array
+
+        Time complexity: O(n), where n is the length of the input text.
+        Space complexity: O(n), where n is the length of the input text.
+        """
+        # Convert the suffix array to the BWT string
+        ret = ""
+        test = ""
+        for i in range(len(self.suffix_array)):
+            ret += self.txt[self.suffix_array[i] - 1]
+            test += self.txt[self.suffix_array[i]]
+        print(self.suffix_array)  # TODO - remove after test
+        return ret
+
+    def dfs(self, node):
+        """
+        Depth-first search (DFS) to traverse the suffix tree and build the suffix array.
+        :param node: The current node being traversed.
+
+        Time complexity: O(n), where n is the length of the input text.
+        Space complexity: O(n), where n is the length of the input text.
+        """
+        for i in range(96):  # 96 possible characters (ASCII values reduced by 32)
+            child = node.get_children(i)
+            if child is not None and child.is_leaf:
+                self.suffix_array.append(child.j)  # Add leaf node's suffix index
+            elif child is not None:
+                self.dfs(child)  # Recurse for non-leaf nodes
 
 
 class Wildcard:
@@ -288,7 +481,11 @@ class Wildcard:
 
 if __name__ == '__main__':
     # python a2q2.py <text filename> <pattern filename>
-    txt_file = open(sys.argv[1], "r")
-    pat_file = open(sys.argv[2], "r")
+    # txt_file = open(sys.argv[1], "r")
+    # pat_file = open(sys.argv[2], "r")
 
-    Wildcard(txt_file.read(), pat_file.read())
+    # Wildcard(txt_file.read(), pat_file.read())
+    BWT("abbbbcbbcbcabbbb").get_bwt()
+    BWT("abcbaabaab").get_bwt()
+    BWT("woolowwmooloo").get_bwt()
+    BWT("abcab").get_bwt()
