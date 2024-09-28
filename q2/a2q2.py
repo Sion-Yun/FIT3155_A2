@@ -186,6 +186,7 @@ class Encode:
         return encoded_data
 
     def output(self, encoded_bits, output_filename):
+        # print(encoded_bits)
         byte_arr = bytearray()
         for i in range(0, len(encoded_bits), 8):
             byte = encoded_bits[i:i + 8]
@@ -196,11 +197,13 @@ class Encode:
 
 
 if __name__ == "__main__":
-    # TODO - change
-    # file_name = sys.argv[1]
-    # with open(file_name, 'r') as f:
-    #     text = f.read()
-    file_name = "x.asc"
-    text = "aacaacabcaba"
+    # TODO - test
+    # python a2q2.py <asc filename>
+    file_name = sys.argv[1]
+    with open(file_name, 'r') as f:
+        text = f.read()
 
     Encode(file_name, text)
+
+    # file_name = "x.asc"
+    # text = "aacaacabcaba"
