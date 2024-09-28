@@ -6,7 +6,7 @@ import heapq
 from collections import Counter
 import sys
 
-# TODO - encapsulate into class, comment, docstring
+# TODO - comment, docstring
 
 ####################
 # Util
@@ -25,7 +25,8 @@ def convert_binary(n):
 def elias_encoding(n):
     # function implementation to convert a given value into elias encoding
     encoded_binary = ""
-    binary = convert_binary(n)
+    # Plus 1 for the non-negativeness of Elias codeword (adjusting index to start from 1)
+    binary = convert_binary(n+1)
     encoded_binary += binary
     k = len(binary) - 1
 
@@ -73,7 +74,7 @@ def generate_huffman_codes(node, prefix="", huffman_codes={}):
     return huffman_codes
 
 def lz77(string):
-    # function implementation to encode a string into lz77 format
+    #  encoding chars (= string) into lz77 format
     encoded_arr = []
     k = 0
 
@@ -107,7 +108,7 @@ def lz77(string):
         # Move past the match
         k += max_match + 1  # Always move past the match + next_char
 
-    print("encoded arr from lz77: ", encoded_arr)
+    # print("encoded arr from lz77: ", encoded_arr)
     return encoded_arr  # return an array in lz77 format
 
 ###############################
@@ -126,6 +127,7 @@ class Encode:
 
         # Combine header and LZ77 encoded data
         encoded_output = self.encode_header(filename) + self.encode_lz77_data()
+        # print(encoded_output)
 
         # Write to binary file
         output_filename = filename.split('.')[0] + ".bin"
@@ -136,18 +138,22 @@ class Encode:
         encoded_header = ""
 
         # 1. Encode file size using Elias encoding
+        # print(elias_encoding(self.file_size))
         encoded_header += elias_encoding(self.file_size)
 
         # 2. Encode filename length using Elias encoding
         filename_length = len(filename)
+        # print(elias_encoding(filename_length))
         encoded_header += elias_encoding(filename_length)
 
         # 3. Encode the filename using 8-bit ASCII
         for char in filename:
+            # print(convert_binary(ord(char)).zfill(8))
             encoded_header += convert_binary(ord(char)).zfill(8)
 
         # 4. Encode the number of distinct characters
         distinct_chars = len(self.huffman_codes)
+        # print(elias_encoding(distinct_chars))
         encoded_header += elias_encoding(distinct_chars)
 
         # 5. For each character, encode its ASCII, codeword length, and the Huffman code
@@ -155,22 +161,28 @@ class Encode:
             encoded_header += convert_binary(ord(char)).zfill(8)  # 8-bit ASCII
             encoded_header += elias_encoding(len(code))  # Codeword length
             encoded_header += code  # Huffman code itself
-
+            """
+            this code gives distinct chars in non-binary order,  (e.g. b = 00, c = 01, a = 1)
+            this differs from the A2 specs example but this could be encoded in any order, according to the specs
+            """
+            # print(char, convert_binary(ord(char)).zfill(8), elias_encoding(len(code)), code)
         return encoded_header
 
     def encode_lz77_data(self):
         encoded_data = ""
 
         for tuple in self.lzss_tuples:
+            # print(tuple)
             if len(tuple) == 3:  # Tuple ⟨offset, length, next_char⟩
                 offset, length, next_char = tuple
-                encoded_data += elias_encoding(offset)
-                encoded_data += elias_encoding(length)
-                encoded_data += self.huffman_codes[next_char]
+                encoded_data += elias_encoding(offset)  # offset using Elias
+                encoded_data += elias_encoding(length)  # length using Elias
+                encoded_data += self.huffman_codes[next_char]  # next_char using Huffman
+                # print(elias_encoding(offset), elias_encoding(length), self.huffman_codes[next_char])
             else:  # Tuple of form ⟨literal⟩
                 literal = tuple[0]
                 encoded_data += self.huffman_codes[literal]
-
+                # print(self.huffman_codes[literal])
         return encoded_data
 
     def output(self, encoded_bits, output_filename):
@@ -184,10 +196,11 @@ class Encode:
 
 
 if __name__ == "__main__":
+    # TODO - change
     # file_name = sys.argv[1]
     # with open(file_name, 'r') as f:
     #     text = f.read()
-    file_name = "testing"
-    text = "bananasplit"
+    file_name = "x.asc"
+    text = "aacaacabcaba"
 
     Encode(file_name, text)

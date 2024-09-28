@@ -7,11 +7,11 @@ def z_algo(txt: str) -> [int]:
     Z-algorithm; computes Z-values of a given string.
 
     time complexity:
-        O(n), for n being the length of text.
+        O(n), for n being the length of txt.
     space complexity:
-        O(n), for n being the length of text.
+        O(n), for n being the length of txt.
 
-    :argument: txt (str): The text to find z-values.
+    :argument: txt (str): The txt to find z-values.
     :return: z_arr: array of all z-values.
     """
     n = len(txt)  # input string
@@ -123,7 +123,7 @@ class Node(object):
 
 class ImplicitSuffixTree(object):
     """
-    A class to represent the implicit suffix tree of a given text, using Ukkonen's algorithm for construction.
+    A class to represent the implicit suffix tree of a given txt, using Ukkonen's algorithm for construction.
     """
     def __init__(self, txt):
         self.txt = txt
@@ -140,22 +140,22 @@ class ImplicitSuffixTree(object):
 
     def init_suffix_tree(self):
         """
-        Initialises the suffix tree by creating the root node and iterating over the text to extend.
+        Initialises the suffix tree by creating the root node and iterating over the txt to extend.
 
-        Time complexity: O(n), where n is the length of the input text.
-        Space complexity: O(n), where n is the length of the input text.
+        Time complexity: O(n), where n is the length of the input txt.
+        Space complexity: O(n), where n is the length of the input txt.
         """
         self.root = self.create_node(-1, -1, None, False)  # root node with start and end as -1
         self.root.suffix_link = self.root  # suffix link points to itself (root)
         self.active_node = self.root  # the first active node is the root
 
         for i in range(self.n):
-            self.extend_suffix_tree(i)  # extending each char from the text.
+            self.extend_suffix_tree(i)  # extending each char from the txt.
 
     def create_node(self, start, end, j, is_leaf=True):
         """
         Creates a new node of the suffix tree.
-        :param start: The starting index of the node's edge in the input text.
+        :param start: The starting index of the node's edge in the input txt.
         :param end: The ending index of the node's edge (or a reference to endPointer for leaves).
         :param j: The suffix index for leaves, None for internal nodes.
         :param is_leaf: Boolean flag to indicate if the node is a leaf.
@@ -167,12 +167,12 @@ class ImplicitSuffixTree(object):
 
     def extend_suffix_tree(self, i):
         """
-        Extends the suffix tree for the text[i].
+        Extends the suffix tree for the txt[i].
         Implements Ukkonen's algorithm with three extension rules.
 
-        Time complexity: O(n), where n is the length of the input text.
+        Time complexity: O(n), where n is the length of the input txt.
             - O(1) amortized per phase.
-        Space complexity: O(n), where n is the length of the input text.
+        Space complexity: O(n), where n is the length of the input txt.
         """
         # Rule 1
         # Trick 4 - rapid leaf extension
@@ -242,7 +242,7 @@ class ImplicitSuffixTree(object):
 
 class BWT:
     """
-    Class representing BWT of a given text.
+    Class representing BWT of a given txt.
     Uses a suffix tree for efficient suffix array construction.
     """
     def __init__(self, txt):
@@ -258,8 +258,8 @@ class BWT:
         Returns the BWT string from the suffix array
         :return ret: The BWT form of the suffix array
 
-        Time complexity: O(n), where n is the length of the input text.
-        Space complexity: O(n), where n is the length of the input text.
+        Time complexity: O(n), where n is the length of the input txt.
+        Space complexity: O(n), where n is the length of the input txt.
         """
         # Convert the suffix array to the BWT string
         ret = ""
@@ -276,8 +276,8 @@ class BWT:
         Depth-first search (DFS) to traverse the suffix tree and build the suffix array.
         :param node: The current node being traversed.
 
-        Time complexity: O(n), where n is the length of the input text.
-        Space complexity: O(n), where n is the length of the input text.
+        Time complexity: O(n), where n is the length of the input txt.
+        Space complexity: O(n), where n is the length of the input txt.
         """
         for i in range(96):  # 96 possible characters (ASCII values reduced by 32)
             child = node.get_children(i)
@@ -297,15 +297,15 @@ class Wildcard:
         prevZ (list): Z-values for the previous segment.
         segments (list): List of segments to be matched.
         if_no_hit (bool): Flag indicating if no match was found.
-        n (int): Length of the input text.
-        txt (str): The text to be matched against.
+        n (int): Length of the input txt.
+        txt (str): The txt to be matched against.
         wild_length (int): Length of the wildcard segment (when applicable).
     """
     def __init__(self, txt, pat):
         """
         The initialisation of Wildcard class.
 
-        :param txt: the text to match.
+        :param txt: the txt to match.
         :param pat: the pattern to match.
         """
         self.txt = txt
@@ -366,9 +366,9 @@ class Wildcard:
         Merges the extracted substrings (characters) with the Z-values of new segments.
 
         time complexity:
-            O(n), for n being the length of text.
+            O(n), for n being the length of txt.
         space complexity:
-            O(n), for n being the length of text.
+            O(n), for n being the length of txt.
         :param self:
         """
         arr = [0] * self.n
@@ -397,9 +397,9 @@ class Wildcard:
         This method is used when the segment is a wildcard, which is represented as a negative value.
 
         time complexity:
-            O(n), for n being the length of text.
+            O(n), for n being the length of txt.
         space complexity:
-            O(n), for n being the length of text.
+            O(n), for n being the length of txt.
         :param self:
         """
         arr = [0] * self.n
@@ -422,7 +422,7 @@ class Wildcard:
 
     def match(self):
         """
-        Performs the pattern matching on the text based on the segments array.
+        Performs the pattern matching on the txt based on the segments array.
         The matching process combines results of all segments.
 
         time complexity:
@@ -477,7 +477,7 @@ class Wildcard:
 
 
 if __name__ == '__main__':
-    # python a2q2.py <text filename> <pattern filename>
+    # python a2q2.py <txt filename> <pattern filename>
     # txt_file = open(sys.argv[1], "r")
     # pat_file = open(sys.argv[2], "r")
 
