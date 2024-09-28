@@ -16,10 +16,8 @@ def dec_to_bin(k: int):
     :param k: the integer to convert
     :return binary_string: the binary expression string
 
-    time complexity:
-
-    space complexity:
-
+    time complexity: O(log(k))
+    space complexity: O(log(k))
     """
     binary_string = ""
     while k >= 1:
@@ -28,6 +26,8 @@ def dec_to_bin(k: int):
         else:
             binary_string += "1"
         k //= 2
+
+    # Returns the reversed binary string
     return binary_string[::-1]
 
 def elias_encode(k: int):
@@ -36,18 +36,19 @@ def elias_encode(k: int):
     :param k: the integer to convert
     :return elias_bin: the Elias binary expression converted
 
-    time complexity:
-
-    space complexity:
-
+    time complexity: O(log(k)^2)
+         - Each step involves binary conversion and adding length prefixes
+    space complexity: O(log(k))
+        - Storing the binary string
     """
     elias_bin = ""
-    # Plus 1 for the non-negativeness of Elias codeword (adjusting index to start from 1)
+    # convert k+1 as Elias codeword is non-negative
     k_bin = dec_to_bin(k + 1)
     elias_bin += k_bin
     x = len(k_bin) - 1
 
     while x >= 1:
+        # zeros to the x (bin) and concat to the Elias binary
         front_bin = dec_to_bin(x)
         front_bin = "0" + front_bin[1:len(front_bin)]
         elias_bin = front_bin + elias_bin
@@ -60,30 +61,31 @@ class HuffmanNode:
     Represents the node of a Huffman tree
     """
     def __init__(self, char=None, freq=0, left=None, right=None):
-        self.char = char
-        self.freq = freq
-        self.left = left
-        self.right = right
+        self.char = char  # the character stored in the node
+        self.freq = freq  # the freq of char / combined freq of children
+        self.left = left  # left child node
+        self.right = right  # right child node
 
     def __lt__(self, other):
-        # Comparison operators for heapq
+        # Comparison for heapq based on freq
         return self.freq < other.freq
 
 def build_huffman_tree(txt: str):
     """
-    Builds the Huffman tree
+    Builds the Huffman tree from a string
     :param txt: the input text
     :return: the root node of Huffman tree
 
-    time complexity:
-
-    space complexity:
+    time complexity: O(n log n), n is the number of distinctive chars in the string
+        - building a priority queue and merging nodes
+    space complexity: O(m), m is the number of nodes in the tree
 
     """
-    freq = Counter(txt)
+    freq = Counter(txt)  # the freq of each char
     heap = [HuffmanNode(char, freq) for char, freq in freq.items()]
-    heapq.heapify(heap)
+    heapq.heapify(heap)  # get min-heap (priority queue)
 
+    # merging the two lowest freq nodes until only one node remains
     while len(heap) > 1:
         left = heapq.heappop(heap)
         right = heapq.heappop(heap)
@@ -94,18 +96,16 @@ def build_huffman_tree(txt: str):
 
 def huffman_encode(node, prefix="", huffman_codes={}):
     """
-    Recursively generates the Huffman codes
-    :param node:
-    :param prefix:
-    :param huffman_codes:
-    :return huffman_codes: the list of Huffman codes
+    Recursively generates the Huffman codes for each char in the Huffman tree
+    :param node: (initially) the root node / the current node
+    :param prefix: the current Huffman code prefix
+    :param huffman_codes: dictionary to store the generated codes
+    :return huffman_codes: the dictionary of Huffman codes for each char
 
-    time complexity:
-
-    space complexity:
-
+    time complexity: O(n), n is the number of nodes in the Huffman tree.
+    space complexity: O(n), n is the number of nodes in the Huffman tree.
     """
-    # starting from the root node
+    # Start from the root node, build unique codes (paths) for each char (node)
     if node.char is not None:
         huffman_codes[node.char] = prefix
     if node.left is not None:
@@ -116,47 +116,44 @@ def huffman_encode(node, prefix="", huffman_codes={}):
 
 def lz77_encode(txt: str):
     """
-    Converts a string to LZ77 format
+    Encode a string to LZ77 format
     :param txt: the input string to convert
-    :return: the list of LZ77 expressions
+    :return: the list of LZ77 tuples <offset, length, next char>
 
-    time complexity:
-
-    space complexity:
-
+    time complexity: O(n^2), where n is len(txt), for matching substrings
+    space complexity: O(n), where n is len(txt), for storing LZ77 tuples
     """
     lz77_list = []  # return list
-    k = 0  # counter
+    pos = 0  # current pos in the txt
 
-    while k < len(txt):
-        ptr = k - 1
+    while pos < len(txt):
+        ptr = pos - 1
         match_counts = []
 
+        # Look for the longest match between the current pos and the window
         while ptr >= 0:
             match_count = 0
-            for i in range(len(txt) - k):
-                if txt[ptr] != txt[k]:
+            for i in range(len(txt) - pos):
+                if txt[ptr] != txt[pos]:
                     break
-                if k + i <= len(txt) - 1 and txt[ptr + i] == txt[k + i]:
+                if pos + i <= len(txt) - 1 and txt[ptr + i] == txt[pos + i]:
                     match_count += 1
                 else:
                     break
-            match_counts.append([match_count, k - ptr])
-            if match_count == len(txt) - k:  # if number of matches = buffer size, break
+            match_counts.append([match_count, pos - ptr])
+            if match_count == len(txt) - pos:  # break if the match covers the lookahead buffer size
                 break
             ptr -= 1
 
         # The maximum match and its offset
         max_match, offset = max(match_counts, key=lambda x: x[0]) if match_counts else (0, 0)
+        next_char = txt[pos + max_match] if pos + max_match < len(txt) else ''
 
-        # The next character after the match, regardless of the match length
-        next_char = txt[k + max_match] if k + max_match < len(txt) else ''
-
-        # Append ⟨offset, length, next_char⟩
+        # Append ⟨offset, length, next_char⟩ to the return list
         lz77_list.append([offset, max_match, next_char])
 
-        # Move past the match
-        k += max_match + 1  # Always move past the match + next_char
+        # Move pos forward
+        pos += max_match + 1  # move past the match + next_char
 
     # print("encoded arr from lz77_encode: ", encoded_arr)
     return lz77_list  # return array of LZ77 format
@@ -172,17 +169,17 @@ class Encode:
     def __init__(self, filename, txt):
         self.file_size = len(txt)
 
-        # LZ77 compression
+        # LZ77 compression on the input text
         self.lzss_tuples = lz77_encode(txt)
 
-        # Huffman coding
+        # Huffman codes generated from Huffman tree
         self.huffman_codes = huffman_encode(build_huffman_tree(txt))
 
         # Combine header and LZ77 encoded data
         encoded_output = self.encode_header(filename) + self.encode_lz77_data()
         # print(encoded_output)
 
-        # Write to binary file
+        # Write the encoded output to binary file
         output_filename = filename.split('.')[0] + ".bin"
         # output_filename = filename.split('.')[0] + ".txt"
         self.output(encoded_output, output_filename)
@@ -190,43 +187,41 @@ class Encode:
     def encode_header(self, filename):
         """
         Encodes the header, which contains the metadata and the huffman code info
-        :param filename: the name of input(=output) file
+        :param filename: the name of input/output file
         :return: the encoded header
 
-        time complexity:
-
-        space complexity:
-
+        time complexity: O(n), where n = len(filename) + number of distinct chars in the file
+        space complexity: O(n), where n = len(filename) + number of distinct chars in the file
         """
         encoded_header = ""
 
-        # 1. Encode file size using Elias encoding
+        # Encode file size using Elias encoding
         # print(elias_encode(self.file_size))
         encoded_header += elias_encode(self.file_size)
 
-        # 2. Encode filename length using Elias encoding
+        # Encode filename length using Elias encoding
         filename_length = len(filename)
         # print(elias_encode(filename_length))
         encoded_header += elias_encode(filename_length)
 
-        # 3. Encode the filename using 8-bit ASCII
+        # Encode the filename using 8-bit ASCII
         for char in filename:
             # print(dec_to_bin(ord(char)).zfill(8))
             encoded_header += dec_to_bin(ord(char)).zfill(8)
 
-        # 4. Encode the number of distinct characters
+        # Encode the number of distinct characters
         distinct_chars = len(self.huffman_codes)
         # print(elias_encode(distinct_chars))
         encoded_header += elias_encode(distinct_chars)
 
-        # 5. For each character, encode its ASCII, codeword length, and the Huffman code
+        # For each character, encode its ASCII, codeword length, and the Huffman code
         for char, code in self.huffman_codes.items():
             encoded_header += dec_to_bin(ord(char)).zfill(8)  # 8-bit ASCII
             encoded_header += elias_encode(len(code))  # Codeword length
             encoded_header += code  # Huffman code itself
             """
-            this code gives distinct chars in non-binary order,  (e.g. b = 00, c = 01, a = 1)
-            this differs from the A2 specs example but this could be encoded in any order, according to the specs
+            This code gives distinct chars in non-binary order,  (e.g. b = 00, c = 01, a = 1)
+            This differs from the A2 specs example but this could be encoded in any order, according to the specs
             """
             # print(char, dec_to_bin(ord(char)).zfill(8), elias_encode(len(code)), code)
         return encoded_header
@@ -236,10 +231,8 @@ class Encode:
         Encodes the LZ77 tuple data parts
         :return: the encoded LZ77 tuple data
 
-        time complexity:
-
-        space complexity:
-
+        time complexity: O(n log n), where n = len(LZ77 tuples)
+        space complexity: O(n), where n = len(LZ77 tuples)
         """
         encoded_data = ""
 
@@ -263,10 +256,8 @@ class Encode:
         :param encoded_bits: the encoded output in bits
         :param output_filename: the output file's name
 
-        time complexity:
-
-        space complexity:
-
+        time complexity: O(n), where n = len(encoded_bits string)
+        space complexity: O(n), where n = len(encoded_bits string)
         """
         # print(encoded_bits)
         byte_array = bytearray()
@@ -274,6 +265,7 @@ class Encode:
             byte = encoded_bits[i:i + 8]
             byte_array.append(int(byte, 2))
 
+        # Write to the output file
         with open(output_filename, "wb") as f:
             f.write(byte_array)
 
