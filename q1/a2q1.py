@@ -1,17 +1,19 @@
 __author__ = "Yun Sion"
 # Github = https://github.com/Sion-Yun/FIT3155_A2
 import sys
+from collections import Counter
+
 
 def z_algo(txt: str) -> [int]:
     """
     Z-algorithm; computes Z-values of a given string.
 
     time complexity:
-        O(n), for n being the length of txt.
+        O(n), for n being the length of text.
     space complexity:
-        O(n), for n being the length of txt.
+        O(n), for n being the length of text.
 
-    :argument: txt (str): The txt to find z-values.
+    :argument: txt (str): The text to find z-values.
     :return: z_arr: array of all z-values.
     """
     n = len(txt)  # input string
@@ -73,13 +75,12 @@ class Node(object):
     Represents a node in the suffix tree
     """
     def __init__(self, start, end, j, is_leaf):
-        # Trick 1 - space-efficient form of edge-labels and substrings
         self.children = None
-        self.children_count = 0  # trick 1
+        self.children_count = 0
         self.suffix_link = None
-        self.j = j  # trick 1; If it's a leaf, this is the index of the suffix
-        self.start = start  # trick 1
-        self.end = end  # trick 1
+        self.j = j  # if it's a leaf, this is the index of the suffix
+        self.start = start  # start index of the string this node represents
+        self.end = end  # end index of the string this node represents
         self.is_leaf = is_leaf
 
         if not is_leaf:
@@ -142,8 +143,8 @@ class ImplicitSuffixTree(object):
         """
         Initialises the suffix tree by creating the root node and iterating over the txt to extend.
 
-        Time complexity: O(n), where n is the length of the input txt.
-        Space complexity: O(n), where n is the length of the input txt.
+        Time complexity: O(k), where k is the length of the input txt.
+        Space complexity: O(k), where k is the length of the input txt.
         """
         self.root = self.create_node(-1, -1, None, False)  # root node with start and end as -1
         self.root.suffix_link = self.root  # suffix link points to itself (root)
@@ -170,9 +171,9 @@ class ImplicitSuffixTree(object):
         Extends the suffix tree for the txt[i].
         Implements Ukkonen's algorithm with three extension rules.
 
-        Time complexity: O(n), where n is the length of the input txt.
+        Time complexity: O(k), where k is the length of the input txt.
             - O(1) amortized per phase.
-        Space complexity: O(n), where n is the length of the input txt.
+        Space complexity: O(k), where k is the length of the input txt.
         """
         # Rule 1
         # Trick 4 - rapid leaf extension
@@ -242,33 +243,34 @@ class ImplicitSuffixTree(object):
 
 class BWT:
     """
-    Class representing BWT of a given txt.
-    Uses a suffix tree for efficient suffix array construction.
+    Class representing BWT of a given txt, using a suffix tree for efficient suffix array construction.
     """
     def __init__(self, txt):
         self.txt = txt
         self.suffix_tree = ImplicitSuffixTree(txt)
         self.suffix_array = []
 
-        # DFS on the suffix tree to get suffix array
+        # DFS the suffix tree to get suffix array
         self.dfs(self.suffix_tree.root)
+        # BWT from the suffix array
+        self.bwt = self.get_bwt()
+
+        # Build first occurrence table and occurrence count table
+        self.first_occurrence_table = self.build_first_occ()
+        self.occurrence_count = self.build_occ_counts()
 
     def get_bwt(self):
         """
-        Returns the BWT string from the suffix array
+        Returns the BWT string from the suffix array.
         :return ret: The BWT form of the suffix array
 
-        Time complexity: O(n), where n is the length of the input txt.
-        Space complexity: O(n), where n is the length of the input txt.
+        Time complexity: O(k), where k is the length of the input txt.
+        Space complexity: O(k), where k is the length of the input txt.
         """
         # Convert the suffix array to the BWT string
         ret = ""
-        # test = ""
         for i in range(len(self.suffix_array)):
             ret += self.txt[self.suffix_array[i] - 1]
-            # test += self.txt[self.suffix_array[i]]
-        print(self.suffix_array)
-        print(ret)
         return ret
 
     def dfs(self, node):
@@ -276,19 +278,97 @@ class BWT:
         Depth-first search (DFS) to traverse the suffix tree and build the suffix array.
         :param node: The current node being traversed.
 
-        Time complexity: O(n), where n is the length of the input txt.
-        Space complexity: O(n), where n is the length of the input txt.
+        Time complexity: O(k), where k is the length of the input txt.
+        Space complexity: O(k), where k is the length of the input txt.
         """
-        for i in range(96):  # 96 possible characters (ASCII values reduced by 32)
+        for i in range(96):  # 96 possible chars (ASCII values - 32 from custom_ord())
             child = node.get_children(i)
             if child is not None and child.is_leaf:
                 self.suffix_array.append(child.j)  # Add leaf node's suffix index
             elif child is not None:
                 self.dfs(child)  # Recurse for non-leaf nodes
 
+    def bwt_search(self, pat):
+        """
+        Searches backward using the BWT to find all occurrences of the pattern in the text.
+
+        Time complexity: O(m + occ), where m = len(pat) and occ = number of occurrences of the pat in the text.
+        Space complexity: O(m + n), where m = len(pat) and n = len(BWT).
+        """
+        m = len(pat)
+        n = len(self.bwt)
+        sp, ep = 0, n - 1  # Range to cover the BWT
+
+        # Search backward the pattern
+        for i in range(m - 1, -1, -1):
+            c = pat[i]
+            sp = self.first_occurrence(c) + self.count_occurrences(c, sp - 1)
+            ep = self.first_occurrence(c) + self.count_occurrences(c, ep) - 1
+
+            if sp > ep:
+                return []  # No match
+
+        # Return all suffix array indices
+        return [self.suffix_array[i] for i in range(sp, ep + 1)]
+
+    def first_occurrence(self, char):
+        """
+        Returns the first occurrence of a char in the sorted BWT string.
+        """
+        return self.first_occurrence_table.get(char, -1)  # Return -1 if char does not exist
+
+    def count_occurrences(self, char, index):
+        """
+        Returns the number of times a char appears in the BWT up to index.
+        """
+        if index < 0:
+            return 0
+        return self.occurrence_count[char][index]
+
+    def build_first_occ(self):
+        """
+        Builds the first occurrence table for all characters in the BWT.
+
+        Time complexity: O(n), where n = len(BWT).
+        Space complexity: O(k), where k = number of unique chars in the BWT.
+        """
+        # Frequencies of each chars in BWT
+        freq = Counter(self.bwt)
+
+        first_occ = {}
+        acc_count = 0
+
+        # Through chars in lexicographical order
+        for char in sorted(freq.keys()):
+            first_occ[char] = acc_count
+            acc_count += freq[char]
+
+        return first_occ  # first occurrence table
+
+    def build_occ_counts(self):
+        """
+        Builds the occurrence count table for all characters in the BWT.
+
+        Time complexity: O(n), where n = len(BWT).
+        Space complexity: O(n * k), where k = number of unique chars in the BWT.
+        """
+        # Initialize occurrence count table for all chars
+        occ_count = {char: [0] * len(self.bwt) for char in set(self.bwt)}
+
+        # Fill the occurrence count table
+        for i, c in enumerate(self.bwt):
+            # Forward the previous counts
+            if i > 0:
+                for char in occ_count:
+                    # Copy from prev pos
+                    occ_count[char][i] = occ_count[char][i - 1]
+            occ_count[c][i] += 1
+
+        return occ_count  # Return occ count table
+
 class Wildcard:
     """
-    A class to perform pattern matching using wildcard and Z-algorithm in segments.
+        A class to perform pattern matching using wildcard and Burrows-Wheeler Transform (BWT) for in segments.
 
     :attributes:
         total_length (int): Cumulative length of matched segments.
@@ -297,7 +377,7 @@ class Wildcard:
         prevZ (list): Z-values for the previous segment.
         segments (list): List of segments to be matched.
         if_no_hit (bool): Flag indicating if no match was found.
-        n (int): Length of the input txt.
+        k (int): Length of the input txt.
         txt (str): The txt to be matched against.
         wild_length (int): Length of the wildcard segment (when applicable).
     """
@@ -319,11 +399,6 @@ class Wildcard:
         self.wild_length = 0
         self.is_no_hit = False
 
-        # TODO - change z_algo to BWT
-        my_bwt = BWT(txt)
-        self.bwt = my_bwt.get_bwt()
-        self.suffix_array = my_bwt.suffix_array
-
         self.match()
         self.output()
 
@@ -339,7 +414,6 @@ class Wildcard:
         space complexity:
             O(m), for m being the length of pat.
 
-        :param self:
         :return: A list of substrings extracted from pat.txt that are separated by '!'.
         """
         substrings = []  # array of the substrings
@@ -366,17 +440,16 @@ class Wildcard:
         Merges the extracted substrings (characters) with the Z-values of new segments.
 
         time complexity:
-            O(n), for n being the length of txt.
+            O(k), for k being the length of txt.
         space complexity:
-            O(n), for n being the length of txt.
-        :param self:
+            O(k), for k being the length of txt.
         """
         arr = [0] * self.n
-        k = self.total_length + self.segment_length  # the maximum length matched after the merge
+        k = self.total_length + self.segment_length  # The maximum length matched after the merge
         flag = False
 
         for i in range(self.n):
-            if i + k > self.n:  # break if the remaining chars are fewer than the merged length
+            if i + k > self.n:  # Break if the remaining chars are fewer than the merged length
                 break
 
             if self.prevZ[i] == self.total_length:
@@ -384,11 +457,11 @@ class Wildcard:
                     arr[i] = k
                     flag = True
 
-        # if no match found, set the flag (attribute) to stop further comparisons
+        # If no match found, set the flag (attribute) to stop further comparisons
         if not flag:
             self.is_no_hit = True
 
-        # update the newly merged Z-values
+        # Update the newly merged Z-values
         self.prevZ = arr
 
     def merge_wildcard(self):
@@ -397,59 +470,64 @@ class Wildcard:
         This method is used when the segment is a wildcard, which is represented as a negative value.
 
         time complexity:
-            O(n), for n being the length of txt.
+            O(k), for k being the length of txt.
         space complexity:
-            O(n), for n being the length of txt.
-        :param self:
+            O(k), for k being the length of txt.
         """
         arr = [0] * self.n
-        k = self.total_length - self.wild_length  # the maximum length matched after the merge
+        k = self.total_length - self.wild_length  # The maximum length matched after the merge
 
-        # CASE: the first segment is a character segment and the array is larger than n
+        # CASE: the first segment is a character segment and the array is larger than k
         shift = 0
         if len(self.prevZ) > self.n:
             shift = len(self.prevZ) - self.n
 
         for i in range(shift, self.n):
-            if i - shift + k > self.n:  # break if the remaining characters are fewer than the merged length
+            if i - shift + k > self.n:  # Break if the remaining characters are fewer than the merged length
                 break
 
-            if self.prevZ[i] == self.total_length:  # update the matched length in the merged array
+            if self.prevZ[i] == self.total_length:  # Update the matched length in the merged array
                 arr[i - shift] = k
 
-        # update the newly merged Z - values
+        # Update the newly merged Z - values
         self.prevZ = arr
 
     def match(self):
         """
         Performs the pattern matching on the txt based on the segments array.
-        The matching process combines results of all segments.
+        The matching process combines results of all segments, using either the BWT for character segments,
+        or Z-values for wildcard segments.
 
-        time complexity:
-            O(k(n + m/k)), for k: the number of segments, n: the length of the txt, m: the length of the pat.txt.
-        space complexity:
-            O(n), n being the length of the txt.
-
-        :param self:
+        time complexity: O(n + k), where n = len(txt) and k = len(segments in the pat).
+        space complexity:  O(n), where n = len(txt).
         """
+        bwt = BWT(self.txt)  # BWT for the text
+
         for i in range(len(self.segments)):
-            if self.is_no_hit:  # stop matching further segments if no match was found in prev
+            if self.is_no_hit:  # Stop matching further segments if no match was found in prev
                 break
 
-            if isinstance(self.segments[i], str):  # segment is a series of char, string
+            if isinstance(self.segments[i], str):  # Segment is a series of char, string
                 merged_str = self.segments[i] + "$" + self.txt
                 self.segment_length = len(self.segments[i])
 
-                if i != 0:  # update z-values for current segment and merge with prev
-                    # TODO
+                if i != 0:  # Update z-values for current segment and merge with prev
                     self.currZ = z_algo(merged_str)
                     self.merge_substrings()
                 else:
-                    # TODO
-                    z_values = z_algo(merged_str)
-                    self.prevZ = z_values[len(self.segments[i]) + 1:]  # skip pattern and $
+                    # BWT search for the first segment to get matching pos
+                    match_positions = bwt.bwt_search(self.segments[i])
 
-                self.total_length += self.segment_length  # update the total length of matched segments
+                    if match_positions:
+                        # Translate BWT match pos to Z-values format
+                        self.prevZ = [0] * self.n
+                        for pos in match_positions:
+                            if pos + len(self.segments[i]) <= self.n:
+                                self.prevZ[pos] = len(self.segments[i])
+                    else:
+                        self.is_no_hit = True  # No match found, stop further matching
+
+                self.total_length += self.segment_length  # Update the total length of matched segments
             else:
                 if i == 0:  # Wildcard is the first segment
                     # Initialize prevZ to allow any position to match the next segment
@@ -458,7 +536,7 @@ class Wildcard:
                     self.wild_length = self.segments[i]
                     self.merge_wildcard()
 
-                # update total length
+                # Update total length
                 self.total_length += -self.segments[i]
 
     def output(self):
@@ -466,10 +544,10 @@ class Wildcard:
         Generates the output file.
 
         time complexity:
-            O(n - m), n is the length of txt and m is the length of pat.
+            O(k - m), k is the length of txt and m is the length of pat.
         """
         m = len(self.pat)
-        with open("output_a1q2.txt", "w+") as f:
+        with open("output_a2q1.txt", "w+") as f:
             if not self.is_no_hit:
                 for i in range(len(self.prevZ) - m + 1):
                     if self.prevZ[i] == m:
@@ -477,12 +555,8 @@ class Wildcard:
 
 
 if __name__ == '__main__':
-    # python a2q2.py <txt filename> <pattern filename>
-    # txt_file = open(sys.argv[1], "r")
-    # pat_file = open(sys.argv[2], "r")
+    # python a2q1.py <txt filename> <pattern filename>
+    txt_file = open(sys.argv[1], "r")
+    pat_file = open(sys.argv[2], "r")
 
-    # Wildcard(txt_file.read(), pat_file.read())
-    # BWT("abbbbcbbcbcabbbb").get_bwt()
-    # BWT("abcbaabaab").get_bwt()
-    # BWT("woolowwmooloo").get_bwt()
-    BWT("banana").get_bwt()  # gives baa
+    Wildcard(txt_file.read(), pat_file.read())
